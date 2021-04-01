@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<!--
+  Python,html,Js codes are available at-> "https://sparklers-the-makers.github.io/blog/robotics/realtime-gps-tracker-with-raspberry-pi/"
+-->
+  <head>
+    <title>Shopping Cart Tracker</title>
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.4.19.0.min.js"></script>
+    <link rel="stylesheet" href="map.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+<style type="text/css">
+  
+  body, html {
+  height: 100%;
+}
+.bg {
+  /* The image used */
+  background-image: url('https://i.pinimg.com/564x/84/54/74/84547489cfe4383fb2b6fe50aaa4dad1.jpg');
+  filter: blur(1px);
+  -webkit-filter: blur(1px);
+  /* Full height */
+  height: 100%;
+
+  /* Center and scale the image nicely */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-others {
+  background-color: rgb(0,0,0); 
+  background-color: rgba(0,0,0, 0.4); 
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  /*border: 3px solid #f1f1f1;*/
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 80%;
+  padding: 20px;
+  transform: translate(-50%, -50%);
+}
+.hr1{
+   color: white; 
+}
+#map-canvas{
+    width:920px;
+    height:500px;
+    border: 6px solid #056af7;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+</style>
+ 
+</head>
+
+
+<body>
+      <div class="bg"></div>
+     <div class="bg-others"> 
+    <div class="container">
+      <h1 >See the Realtime Locations of your Shopping Carts</h1>
+        <center><hr style="height:2px; border:none; color:#ffffff; background-color:#ffffff; width:35%; margin: 0 auto 0 auto;"></center>
+        <!--<p>19.2 Plymouth</p>-->  <br><br>
+        <center><div id="map-canvas"></div></center><br>
+        <center><button class="btn btn-success col-sm-3" id="action">Start Tracking</button></center>
+        
+    </div>
+          </div>
+
+
+    <script>
+    window.lat = 6.927079;          /*Colombo location*/
+    window.lng = 79.861244;
+
+    var map;
+    var mark;
+    var lineCoords = [];
+     
+
+    var initialize = function() {
+      map  = new google.maps.Map(document.getElementById('map-canvas'), {center:{lat:lat,lng:lng},zoom:12});
+      mark = new google.maps.Marker({position:{lat:lat, lng:lng}, map:map});
+    };
+
+    window.initialize = initialize;
+
+    var redraw = function(payload) {
+      if(payload.message.lat){
+      lat = payload.message.lat;
+      lng = payload.message.lng;
+
+      map.setCenter({lat:lat, lng:lng, alt:0});
+      mark.setPosition({lat:lat, lng:lng, alt:0});
+      
+      lineCoords.push(new google.maps.LatLng(lat, lng));
+
+      var lineCoordinatesPath = new google.maps.Polyline({
+        path: lineCoords,
+        geodesic: true,
+        strokeColor: '#E5E500'
+      });
+      
+      lineCoordinatesPath.setMap(map);}
+    };
+
+    var pnChannel = "raspi-tracker";
+
+    var pubnub = new PubNub({
+      publishKey:   'pub-c-bb2c114e-b256-4d10-ba41-9ae83321be30',
+      subscribeKey: 'sub-c-929fb876-72ee-11eb-b241-92bcc7d4dfc4'
+    });
+        
+    document.querySelector('#action').addEventListener('click', function(){
+        var text = document.getElementById("action").textContent;
+        if(text == "Start Tracking"){
+            pubnub.subscribe({channels: [pnChannel]});
+            pubnub.addListener({message:redraw});
+            document.getElementById("action").classList.add('btn-danger');
+            document.getElementById("action").classList.remove('btn-success');
+            document.getElementById("action").textContent = 'Stop Tracking';
+        }
+        else{
+            pubnub.unsubscribe( {channels: [pnChannel] });
+            document.getElementById("action").classList.remove('btn-danger');
+            document.getElementById("action").classList.add('btn-success');
+            document.getElementById("action").textContent = 'Start Tracking';
+        }
+        });
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyANUIVGzPdeeXW2byQbM3LbN9tbilQK0u8&callback=initialize"></script>
+
+<!--THE BELOW CODE IS JUST FOR TESTING PURPOSE. THIS SCRIPT PART SHOULD BE REMOVED BEFORE CONNECTING THE GPS MODULE. -->
+
+    <script>
+function newPoint(time) {
+      var radius = 0.01;
+      var x = Math.random() * radius;
+      var y = Math.random() * radius;
+      return {lat:window.lat + y, lng:window.lng + x};
+        }
+      setInterval(function() {
+      pubnub.publish({channel:pnChannel, message:newPoint()});
+      }, 500);
+</script>
+<!-------------------------------------------------------------------------------------------------------------------->
+
+  </body>
+</html>
